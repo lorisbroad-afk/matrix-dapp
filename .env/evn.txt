@@ -1,0 +1,2 @@
+PRIVATE_KEY=your_wallet_private_key_here
+INFURA_PROJECT_ID= 79c651d2eeeb4b6d84a00759444b8c35

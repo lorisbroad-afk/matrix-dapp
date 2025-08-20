@@ -1,0 +1,243 @@
+const { useState, useEffect } = React;
+
+function MatrixDApp() {
+    const [web3, setWeb3] = useState(null);
+    const [account, setAccount] = useState('');
+    const [contract, setContract] = useState(null);
+    const [userInfo, setUserInfo] = useState(null);
+    const [matrixData, setMatrixData] = useState([]);
+    const [currentLevel, setCurrentLevel] = useState(1);
+    const [loading, setLoading] = useState(false);
+
+    const contractABI = [
+        // Contract ABI would go here
+    ];
+
+    const connectWallet = async () => {
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const web3Instance = new Web3(window.ethereum);
+                setWeb3(web3Instance);
+                
+                const accounts = await web3Instance.eth.getAccounts();
+                setAccount(accounts[0]);
+                
+                // Initialize contract
+                const contractInstance = new web3Instance.eth.Contract(contractABI, CONTRACT_ADDRESS);
+                setContract(contractInstance);
+                
+            } catch (error) {
+                console.error('Error connecting wallet:', error);
+            }
+        } else {
+            alert('Please install MetaMask!');
+        }
+    };
+
+    const loadUserData = async () => {
+        if (contract && account) {
+            try {
+                const info = await contract.methods.getUserInfo(account).call();
+                setUserInfo(info);
+                
+                if (info.isActive) {
+                    loadMatrixData(info.currentLevel);
+                }
+            } catch (error) {
+                console.error('Error loading user data:', error);
+            }
+        }
+    };
+
+    const loadMatrixData = async (level) => {
+        if (contract) {
+            try {
+                const positions = await contract.methods.getMatrixPosition(level).call();
+                setMatrixData(positions);
+            } catch (error) {
+                console.error('Error loading matrix data:', error);
+            }
+        }
+    };
+
+    const registerUser = async (referrerCode) => {
+        if (contract && account) {
+            try {
+                setLoading(true);
+                const price = await contract.methods.getLevelPrice(1).call();
+                
+                await contract.methods.register(
+                    referrerCode || account,
+                    `REF_${Date.now()}`
+                ).send({
+                    from: account,
+                    value: price
+                });
+                
+                await loadUserData();
+            } catch (error) {
+                console.error('Error registering:', error);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (web3 && account) {
+            loadUserData();
+        }
+    }, [web3, account]);
+
+    return (
+        
+
+            
+
+                
+                    
+
+                        3x2 Matrix DApp
+                    
+
+                    {!account ? (
+                        
+                            Connect Wallet
+                        
+                    ) : (
+                        
+
+                            
+Connected:
+
+
+                            
+{account}
+
+
+                        
+
+                    )}
+                
+
+                {account && (
+                    
+
+                        
+
+                            
+Dashboard
+
+                            {userInfo ? (
+                                
+
+                                    
+
+                                        
+
+                                            
+Current Level
+
+
+                                            
+
+                                                {userInfo.currentLevel}
+                                            
+
+
+                                        
+
+                                        
+
+                                            
+Total Earnings
+
+
+                                            
+
+                                                {web3?.utils.fromWei(userInfo.totalEarnings, 'ether')} ETH
+                                            
+
+
+                                        
+
+                                    
+
+                                    
+
+                                        
+Referrals
+
+
+                                        
+
+                                            {userInfo.referrals.length}
+                                        
+
+
+                                    
+
+                                
+
+                            ) : (
+                                
+
+                                     registerUser('')}
+                                        disabled={loading}
+                                        className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {loading ? 'Registering...' : 'Register Now'}
+                                    
+                                
+
+                            )}
+                        
+
+
+                        
+
+                            
+Matrix Level {currentLevel}
+
+                            
+
+                                {Array.from({ length: 6 }, (_, i) => (
+                                    
+
+                                        {matrixData[i] && matrixData[i] !== '0x0000000000000000000000000000000000000000'
+                                            ? `${matrixData[i].slice(0, 6)}...`
+                                            : 'Empty'
+                                        }
+                                    
+
+                                ))}
+                            
+
+                            
+
+                                 setCurrentLevel(Math.max(1, currentLevel - 1))}
+                                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                                    disabled={currentLevel <= 1}
+                                >
+                                    ← Previous
+                                
+                                 setCurrentLevel(Math.min(12, currentLevel + 1))}
+                                    className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                                    disabled={currentLevel >= 12}
+                                >
+                                    Next →
+                                
+                            
+
+                        
+
+                    
+
+                )}
+            
+
+        
+
+    );
+}
